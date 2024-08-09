@@ -1,12 +1,12 @@
 #!/bin/bash
 
+# Ensure 'nargo' is installed with the correct version
+REQUIRED_VERSION="0.32.0"
+
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
-
-# Navigate to the project directory
-cd /home/ubuntu/trusted_apps/exponential_elgamal/ || { echo "Project directory not found!"; exit 1; }
 
 # Check for necessary files
 if [ ! -f "Nargo.toml" ]; then
@@ -21,11 +21,20 @@ if ! command_exists cargo; then
     source $HOME/.cargo/env
 fi
 
-# Ensure 'nargo' is installed
-if ! command_exists nargo; then
-    echo "'nargo' is not installed. Attempting to install..."
-    curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash || { echo "Failed to install 'noirup'. Please install it manually."; exit 1; }
-    noirup --version 0.32.0 || { echo "Failed to install 'nargo'. Please install it manually."; exit 1; }
+
+if ! command_exists nargo || [ "$(nargo --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" != "$REQUIRED_VERSION" ]; then
+    echo "'nargo' is not installed or not the required version ($REQUIRED_VERSION). Attempting to install..."
+    
+    # Install noirup if not already installed
+    if ! command_exists noirup; then
+        curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash || { echo "Failed to install 'noirup'. Please install it manually."; exit 1; }
+    fi
+    
+    # Update PATH
+    export PATH="$HOME/.noirup/bin:$PATH"
+    
+    # Install the required version of nargo
+    noirup --version "$REQUIRED_VERSION" || { echo "Failed to install 'nargo' version $REQUIRED_VERSION. Please install it manually."; exit 1; }
 fi
 
 # Install dependencies
