@@ -2,6 +2,6 @@
 name = "exponential_elgamal"
 type = "bin"
 authors = [""]
-compiler_version = "0.10.1"
+compiler_version = "0.32.0"
 
 [dependencies]
