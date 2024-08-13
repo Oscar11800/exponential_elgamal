@@ -9,13 +9,15 @@ use num_cpus;
 use ark_ec::twisted_edwards_extended::{GroupAffine, GroupProjective};
 use ark_ec::group::Group;
 use std::env;
-use num_bigint::BigUint; 
-use num_traits::Num;  
+use num_bigint::BigUint;
+use num_traits::Num;
 use colored::*;
+use std::time::Instant;
 
 fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupProjective<EdwardsParameters>) -> Option<u64> {
     println!("{}", "🔍 Starting baby-giant step algorithm...".green().bold());
-    
+    let start_time = Instant::now();
+
     let m = 1u64 << (max_bitwidth / 2);
     let threads = num_cpus::get() as u64;
     let chunk_size = m / threads;
@@ -68,11 +70,16 @@ fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupPr
         println!("{}", "❌ Baby-giant step algorithm failed to find a match.".red().bold());
     }
 
+    let duration = start_time.elapsed();
+    println!("{} Baby-giant step algorithm took: {:?}", "⏱️".cyan().bold(), duration);
+
     result
 }
 
 fn run_noir() -> std::process::Output {
     println!("{}", "🚀 Running Noir test...".yellow().bold());
+    let start_time = Instant::now();
+
     let output = Command::new("nargo")
         .arg("test")
         .arg("--show-output")
@@ -86,13 +93,22 @@ fn run_noir() -> std::process::Output {
         println!("{} Noir Output:\n{}", "📄".blue(), output_str);
     }
 
+    let duration = start_time.elapsed();
+    println!("{} Noir encryption took: {:?}", "⏱️".cyan().bold(), duration);
+
     output
 }
 
 fn parse_noir_output(output: &str) -> (String, String) {
     println!("{}", "🔍 Parsing Noir output...".yellow().bold());
+    let start_time = Instant::now();
+
     let decrypted_x = extract_value(output, "decrypted_x:");
     let decrypted_y = extract_value(output, "decrypted_y:");
+
+    let duration = start_time.elapsed();
+    println!("{} Parsing Noir output took: {:?}", "⏱️".cyan().bold(), duration);
+
     (decrypted_x, decrypted_y)
 }
 
@@ -102,7 +118,7 @@ fn extract_value(output: &str, key: &str) -> String {
         let end = output[start..].find('\n').unwrap_or(output.len());
         let extracted = output[start..start + end].trim().to_string();
         
-        if extracted.is_empty() {
+        if extracted.is_empty() {  // <-- Fix here
             eprintln!("{} Error: Extracted value for key '{}' is empty.", "❌".red().bold(), key);
             eprintln!("Output: {}", output);
             std::process::exit(1);
@@ -119,6 +135,8 @@ fn extract_value(output: &str, key: &str) -> String {
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
     println!("{}", "🚀 Starting the process...".yellow().bold());
+    let overall_start_time = Instant::now();
+
     let output = run_noir();
     let output_str = std::str::from_utf8(&output.stdout).expect("Failed to parse output");
 
@@ -134,10 +152,15 @@ fn main() {
 
     let dlog_result = do_compute_dlog(&decrypted_x, &decrypted_y);
     println!("{} Discrete logarithm result (decrypted message): {}", "🔑".green().bold(), dlog_result);
+
+    let overall_duration = overall_start_time.elapsed();
+    println!("{} Overall process took: {:?}", "⏱️".cyan().bold(), overall_duration);
 }
 
 fn do_compute_dlog(decrypted_x: &str, decrypted_y: &str) -> u64 {
     println!("{}", "🧮 Starting discrete logarithm computation...".yellow().bold());
+    let start_time = Instant::now();
+
     let coeff_twisted = field_new!(Fq, "168700").sqrt().unwrap();
     let gx = field_new!(Fq, "5299619240641551281634865583518297030282874472190772894086521144482721001553") * coeff_twisted;
     let gy = field_new!(Fq, "16950150798460657717958625567821834550301663161624707787222815936182638968203");
@@ -172,12 +195,19 @@ fn do_compute_dlog(decrypted_x: &str, decrypted_y: &str) -> u64 {
     let result = baby_giant(40, &a, &b.into_projective()).unwrap_or_else(|| {
         panic!("{} Discrete log computation failed for input x: {}, y: {}", "❌".red().bold(), decrypted_x, decrypted_y);
     });
+
     println!("{} Decrypted message as integer: {}", "🔑".green().bold(), result);
+
+    let duration = start_time.elapsed();
+    println!("{} Discrete logarithm computation took: {:?}", "⏱️".cyan().bold(), duration);
+
     result
 }
 
 fn convert_to_fq(s: &str) -> Option<Fq> {
     println!("{}", "🔄 Converting string to Fq...".blue().bold());
+    let start_time = Instant::now();
+
     let s = s.strip_prefix("0x").unwrap_or(s);
 
     let padded_s = format!("{:0>64}", s);
@@ -204,6 +234,9 @@ fn convert_to_fq(s: &str) -> Option<Fq> {
     if fq_value.is_none() {
         println!("{} Conversion to Fq failed for input: {:?}", "❌".red().bold(), s);
     }
+
+    let duration = start_time.elapsed();
+    println!("{} String to Fq conversion took: {:?}", "⏱️".cyan().bold(), duration);
 
     fq_value
 }
