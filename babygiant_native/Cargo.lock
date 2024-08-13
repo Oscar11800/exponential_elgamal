@@ -111,6 +111,8 @@ dependencies = [
  "ark-ff",
  "ark-std",
  "hex",
+ "num-bigint",
+ "num-traits",
  "num_cpus",
 ]
 

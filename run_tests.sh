@@ -21,25 +21,35 @@ if ! command_exists cargo; then
     source $HOME/.cargo/env
 fi
 
-
+# Ensure 'nargo' is installed with the correct version
 if ! command_exists nargo || [ "$(nargo --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" != "$REQUIRED_VERSION" ]; then
     echo "'nargo' is not installed or not the required version ($REQUIRED_VERSION). Attempting to install..."
-    
+
     # Install noirup if not already installed
     if ! command_exists noirup; then
+        echo "'noirup' is not installed. Installing 'noirup'..."
         curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash || { echo "Failed to install 'noirup'. Please install it manually."; exit 1; }
+        echo "'noirup' installed successfully."
+        
+        # Update PATH
+        export PATH="$HOME/.noirup/bin:$PATH"
+        source /home/user/.bashrc  # Reload bashrc to ensure PATH is updated
+    fi
+
+    # Double-check that noirup is in the PATH
+    if ! command_exists noirup; then
+        echo "'noirup' is still not found after installation. Please check your PATH."
+        exit 1
     fi
     
-    # Update PATH
-    export PATH="$HOME/.noirup/bin:$PATH"
-    
     # Install the required version of nargo
+    echo "Installing 'nargo' version $REQUIRED_VERSION..."
     noirup --version "$REQUIRED_VERSION" || { echo "Failed to install 'nargo' version $REQUIRED_VERSION. Please install it manually."; exit 1; }
 fi
 
 # Install dependencies
 echo "Installing dependencies..."
-cd babygiant_native/
+cd babygiant_native/ || { echo "Directory 'babygiant_native/' not found!"; exit 1; }
 cargo build || { echo "Dependency installation failed!"; exit 1; }
 
 # Build the project
