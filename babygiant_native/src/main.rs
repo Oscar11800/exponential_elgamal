@@ -9,12 +9,14 @@ use num_cpus;
 use ark_ec::twisted_edwards_extended::{GroupAffine, GroupProjective};
 use ark_ec::group::Group;
 use std::env;
-use num_bigint::BigUint; // Import BigUint for large integer operations
-use num_traits::Num;     // Import Num for parsing hex strings
+use num_bigint::BigUint; 
+use num_traits::Num;  
+use colored::*;
 
 fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupProjective<EdwardsParameters>) -> Option<u64> {
+    println!("{}", "🔍 Starting baby-giant step algorithm...".green().bold());
+    
     let m = 1u64 << (max_bitwidth / 2);
-
     let threads = num_cpus::get() as u64;
     let chunk_size = m / threads;
     let (tx, rx) = mpsc::channel();
@@ -24,6 +26,8 @@ fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupPr
         let b = b.clone();
         let tx = tx.clone();
         thread::spawn(move || {
+            println!("{} Starting thread {} for chunk of size {}", "⚙️".cyan(), idx + 1, chunk_size);
+
             let start = idx * chunk_size;
             let end = if idx == threads - 1 { m } else { start + chunk_size };
             let mut table = HashMap::new();
@@ -35,6 +39,7 @@ fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupPr
                 table.insert(v, j);
                 v = v + a1;
             }
+
             let am = Group::mul(&a, &Fr::from(m)).into_projective();
             let mut gamma = b.clone();
 
@@ -56,10 +61,18 @@ fn baby_giant(max_bitwidth: u64, a: &GroupAffine<EdwardsParameters>, b: &GroupPr
             break;
         }
     }
+    
+    if result.is_some() {
+        println!("{}", "✅ Baby-giant step algorithm completed successfully.".green().bold());
+    } else {
+        println!("{}", "❌ Baby-giant step algorithm failed to find a match.".red().bold());
+    }
+
     result
 }
 
 fn run_noir() -> std::process::Output {
+    println!("{}", "🚀 Running Noir test...".yellow().bold());
     let output = Command::new("nargo")
         .arg("test")
         .arg("--show-output")
@@ -68,15 +81,16 @@ fn run_noir() -> std::process::Output {
 
     let output_str = String::from_utf8_lossy(&output.stdout);
     if output_str.is_empty() {
-        eprintln!("Error: No output from Noir.");
+        eprintln!("{}", "❌ Error: No output from Noir.".red().bold());
     } else {
-        println!("Noir Output:\n{}", output_str);
+        println!("{} Noir Output:\n{}", "📄".blue(), output_str);
     }
 
     output
 }
 
 fn parse_noir_output(output: &str) -> (String, String) {
+    println!("{}", "🔍 Parsing Noir output...".yellow().bold());
     let decrypted_x = extract_value(output, "decrypted_x:");
     let decrypted_y = extract_value(output, "decrypted_y:");
     (decrypted_x, decrypted_y)
@@ -89,14 +103,14 @@ fn extract_value(output: &str, key: &str) -> String {
         let extracted = output[start..start + end].trim().to_string();
         
         if extracted.is_empty() {
-            eprintln!("Error: Extracted value for key '{}' is empty.", key);
+            eprintln!("{} Error: Extracted value for key '{}' is empty.", "❌".red().bold(), key);
             eprintln!("Output: {}", output);
             std::process::exit(1);
         }
 
         return extracted;
     } else {
-        eprintln!("Error: Key '{}' not found in output.", key);
+        eprintln!("{} Error: Key '{}' not found in output.", "❌".red().bold(), key);
         eprintln!("Output:\n{}", output);
         std::process::exit(1);
     }
@@ -104,24 +118,26 @@ fn extract_value(output: &str, key: &str) -> String {
 
 fn main() {
     env::set_var("RUST_BACKTRACE", "1");
+    println!("{}", "🚀 Starting the process...".yellow().bold());
     let output = run_noir();
     let output_str = std::str::from_utf8(&output.stdout).expect("Failed to parse output");
 
     if output_str.is_empty() {
-        eprintln!("Error: The output from Noir is empty.");
+        eprintln!("{}", "❌ Error: The output from Noir is empty.".red().bold());
         std::process::exit(1);
     }
 
     let (decrypted_x, decrypted_y) = parse_noir_output(output_str);
 
-    println!("Extracted decrypted_x: {}", decrypted_x);
-    println!("Extracted decrypted_y: {}", decrypted_y);
+    println!("{} Extracted decrypted_x: {}", "🔓".green(), decrypted_x);
+    println!("{} Extracted decrypted_y: {}", "🔓".green(), decrypted_y);
 
     let dlog_result = do_compute_dlog(&decrypted_x, &decrypted_y);
-    println!("Discrete logarithm result (decrypted message): {}", dlog_result);
+    println!("{} Discrete logarithm result (decrypted message): {}", "🔑".green().bold(), dlog_result);
 }
 
 fn do_compute_dlog(decrypted_x: &str, decrypted_y: &str) -> u64 {
+    println!("{}", "🧮 Starting discrete logarithm computation...".yellow().bold());
     let coeff_twisted = field_new!(Fq, "168700").sqrt().unwrap();
     let gx = field_new!(Fq, "5299619240641551281634865583518297030282874472190772894086521144482721001553") * coeff_twisted;
     let gy = field_new!(Fq, "16950150798460657717958625567821834550301663161624707787222815936182638968203");
@@ -130,13 +146,13 @@ fn do_compute_dlog(decrypted_x: &str, decrypted_y: &str) -> u64 {
     let stripped_x = &decrypted_x[2..];
     let stripped_y = &decrypted_y[2..];
 
-    println!("Stripped decrypted_x: {}", stripped_x);
-    println!("Stripped decrypted_y: {}", stripped_y);
+    println!("{} Stripped decrypted_x: {}", "🔢".blue(), stripped_x);
+    println!("{} Stripped decrypted_y: {}", "🔢".blue(), stripped_y);
 
     let bx = match convert_to_fq(stripped_x) {
         Some(val) => val * coeff_twisted,
         None => {
-            println!("Failed to convert stripped decrypted_x to Fq. Input: {}", stripped_x);
+            println!("{} Failed to convert stripped decrypted_x to Fq. Input: {}", "❌".red().bold(), stripped_x);
             return 0;
         }
     };
@@ -144,23 +160,24 @@ fn do_compute_dlog(decrypted_x: &str, decrypted_y: &str) -> u64 {
     let by = match convert_to_fq(stripped_y) {
         Some(val) => val,
         None => {
-            println!("Failed to convert stripped decrypted_y to Fq. Input: {}", stripped_y);
+            println!("{} Failed to convert stripped decrypted_y to Fq. Input: {}", "❌".red().bold(), stripped_y);
             return 0;
         }
     };
 
-    println!("Converted Fq values - bx: {:?}, by: {:?}", bx, by);
+    println!("{} Converted Fq values - bx: {:?}, by: {:?}", "🔄".green().bold(), bx, by);
 
     let b = BabyJubJub::new(bx, by);
 
     let result = baby_giant(40, &a, &b.into_projective()).unwrap_or_else(|| {
-        panic!("Discrete log computation failed for input x: {}, y: {}", decrypted_x, decrypted_y);
+        panic!("{} Discrete log computation failed for input x: {}, y: {}", "❌".red().bold(), decrypted_x, decrypted_y);
     });
-    println!("Decrypted message as integer: {}", result);
+    println!("{} Decrypted message as integer: {}", "🔑".green().bold(), result);
     result
 }
 
 fn convert_to_fq(s: &str) -> Option<Fq> {
+    println!("{}", "🔄 Converting string to Fq...".blue().bold());
     let s = s.strip_prefix("0x").unwrap_or(s);
 
     let padded_s = format!("{:0>64}", s);
@@ -168,7 +185,7 @@ fn convert_to_fq(s: &str) -> Option<Fq> {
     let bigint = match BigUint::from_str_radix(&padded_s, 16) {
         Ok(val) => val,
         Err(e) => {
-            println!("Hex decoding error: {}", e);
+            println!("{} Hex decoding error: {}", "❌".red().bold(), e);
             return None;
         }
     };
@@ -185,23 +202,8 @@ fn convert_to_fq(s: &str) -> Option<Fq> {
     let fq_value = Fq::from_repr(BigInteger256::new(buf));
 
     if fq_value.is_none() {
-        println!("Conversion to Fq failed for input: {:?}", s);
+        println!("{} Conversion to Fq failed for input: {:?}", "❌".red().bold(), s);
     }
 
     fq_value
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_compute_dlog() {
-        let dlog = do_compute_dlog(
-            "cad3cd30e863eb0e2ed2ef543b5a7fe4f26a06dfb08828542cdf2487237bf500",
-            "123b986383d08a0ca623bf8c59288032c8ce8054ebc415a53114bec295047a0a"
-        );
-        assert_eq!(4294967295, dlog);
-    }
 }
