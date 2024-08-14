@@ -1,0 +1,18 @@
+# Target directory
+/target/
+
+# IDE-specific settings
+.vscode/
+.idea/
+*.iml
+
+# Jupyter Notebooks (if not essential)
+*.ipynb
+
+# Temporary files and logs
+*.log
+*.tmp
+*.bak
+
+# System-specific files
+.DS_Store
