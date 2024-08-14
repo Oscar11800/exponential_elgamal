@@ -133,7 +133,7 @@ fn extract_value(output: &str, key: &str) -> String {
 }
 
 fn main() {
-    env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "0");
     println!("{}", "🚀 Starting the process...".yellow().bold());
     let overall_start_time = Instant::now();
 

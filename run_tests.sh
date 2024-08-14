@@ -57,8 +57,12 @@ echo "Building the project..."
 cd ..
 nargo build || { echo "Build failed!"; exit 1; }
 
-# Run tests with output
-echo "Running tests with output..."
+# Run encryption tests with output
+echo "Running only encryption..."
 nargo test --show-output || { echo "Tests failed!"; exit 1; }
+
+echo "Running both encryption and decryption with output..."
+cd babygiant_native/ || { echo "Directory 'babygiant_native/' not found!"; exit 1; }
+cargo run || { echo "Rust encryption/decryption failed!"; exit 1; }
 
 echo "Script execution completed."
