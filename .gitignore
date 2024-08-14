@@ -1,6 +1,6 @@
 # Target directory
 /target/
-baby_giant_native/target/
+/baby_giant_native/target/
 
 # IDE-specific settings
 .vscode/
