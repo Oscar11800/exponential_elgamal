@@ -22,12 +22,18 @@ if [ ! -f "Nargo.toml" ]; then
 fi
 
 # Ensure 'cargo' is installed
+cd babygiant_native/ || { echo "Directory 'babygiant_native/' not found!"; exit 1; }
 if ! command_exists cargo; then
     echo "'cargo' is not installed. Attempting to install Rust..."
-    curl https://sh.rustup.rs -sSf | sh -s -- -y || { echo "Failed to install 'cargo'. Please install it manually."; exit 1; }
+    sudo apt install cargo|| { echo "Failed to install 'cargo'. Please install it manually."; exit 1; }
     . "$HOME/.cargo/env"
 fi
 
+# Install dependencies
+echo "Installing dependencies..."
+cargo build || { echo "Dependency installation failed!"; exit 1; }
+
+cd ..
 # Ensure 'nargo' is installed with the correct version
 if ! command_exists nargo || [ "$(nargo --version | awk '{print $2}')" != "$REQUIRED_VERSION" ]; then
     echo "'nargo' is not installed or not the required version ($REQUIRED_VERSION). Attempting to install..."
@@ -41,6 +47,7 @@ if ! command_exists nargo || [ "$(nargo --version | awk '{print $2}')" != "$REQU
         # Update PATH
         export PATH="$HOME/.noirup/bin:$PATH"
         . "$HOME/.bashrc"  # Reload bashrc to ensure PATH is updated
+        noirup
     fi
 
     # Double-check that noirup is in the PATH
@@ -54,14 +61,10 @@ if ! command_exists nargo || [ "$(nargo --version | awk '{print $2}')" != "$REQU
     noirup --version "$REQUIRED_VERSION" || { echo "Failed to install 'nargo' version $REQUIRED_VERSION. Please install it manually."; exit 1; }
 fi
 
-# Install dependencies
-echo "Installing dependencies..."
-cd babygiant_native/ || { echo "Directory 'babygiant_native/' not found!"; exit 1; }
-cargo build || { echo "Dependency installation failed!"; exit 1; }
+
 
 # Build the project
 echo "Building the project..."
-cd ..
 nargo build || { echo "Build failed!"; exit 1; }
 
 # Run encryption tests with output
