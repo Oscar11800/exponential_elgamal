@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-colored = "2.0"
 ark-ff = "0.2.0"
 ark-ec = "0.2.0"
 ark-ed-on-bn254 = "0.2.0"

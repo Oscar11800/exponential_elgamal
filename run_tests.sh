@@ -8,6 +8,13 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Ensure build tools are installed
+if ! command_exists cc; then
+    echo "'cc' (C compiler) is not installed. Installing necessary build tools..."
+    sudo apt-get update
+    sudo apt-get install -y build-essential || { echo "Failed to install build tools. Please install them manually."; exit 1; }
+fi
+
 # Check for necessary files
 if [ ! -f "Nargo.toml" ]; then
     echo "Nargo.toml not found!"
@@ -18,11 +25,11 @@ fi
 if ! command_exists cargo; then
     echo "'cargo' is not installed. Attempting to install Rust..."
     curl https://sh.rustup.rs -sSf | sh -s -- -y || { echo "Failed to install 'cargo'. Please install it manually."; exit 1; }
-    source $HOME/.cargo/env
+    . "$HOME/.cargo/env"
 fi
 
 # Ensure 'nargo' is installed with the correct version
-if ! command_exists nargo || [ "$(nargo --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" != "$REQUIRED_VERSION" ]; then
+if ! command_exists nargo || [ "$(nargo --version | awk '{print $2}')" != "$REQUIRED_VERSION" ]; then
     echo "'nargo' is not installed or not the required version ($REQUIRED_VERSION). Attempting to install..."
 
     # Install noirup if not already installed
@@ -33,13 +40,13 @@ if ! command_exists nargo || [ "$(nargo --version | grep -oE '[0-9]+\.[0-9]+\.[0
         
         # Update PATH
         export PATH="$HOME/.noirup/bin:$PATH"
-        source /home/user/.bashrc  # Reload bashrc to ensure PATH is updated
+        . "$HOME/.bashrc"  # Reload bashrc to ensure PATH is updated
     fi
 
     # Double-check that noirup is in the PATH
     if ! command_exists noirup; then
         echo "'noirup' is still not found after installation. Please check your PATH."
-        exit 1
+        exit 1;
     fi
     
     # Install the required version of nargo
